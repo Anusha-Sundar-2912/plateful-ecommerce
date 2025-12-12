@@ -1,9 +1,13 @@
-// controllers/orderController.js
 import Stripe from 'stripe';
 import Order from '../modals/order.js';
 import 'dotenv/config';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const getStripe = () => {
+    if (!process.env.STRIPE_SECRET_KEY) {
+        throw new Error('STRIPE_SECRET_KEY is not defined');
+    }
+    return new Stripe(process.env.STRIPE_SECRET_KEY);
+};
 
 // Create Order
 export const createOrder = async (req, res) => {
@@ -37,7 +41,9 @@ export const createOrder = async (req, res) => {
         let newOrder;
 
         if (paymentMethod === 'online') {
-            const session = await stripe.checkout.sessions.create({
+const stripe = getStripe();
+
+const session = await stripe.checkout.sessions.create({
                 payment_method_types: ['card'],
                 mode: 'payment',
                 line_items: orderItems.map(o => ({
@@ -105,7 +111,8 @@ export const confirmPayment = async (req, res) => {
         console.log("[2] Attempting to retrieve session from Stripe...");
 
         // --- HANG POINT #1: STRIPE ---
-        const session = await stripe.checkout.sessions.retrieve(session_id);
+const stripe = getStripe();
+const session = await stripe.checkout.sessions.retrieve(session_id);
         // -----------------------------
 
         console.log("[3] Successfully retrieved session from Stripe.");
