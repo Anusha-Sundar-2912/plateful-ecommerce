@@ -17,8 +17,8 @@ export const connectDB = async () => {
         // Use the URI loaded from the environment variable
         await mongoose.connect(process.env.MONGO_URI);
         console.log('DB CONNECTED');
-    } catch (err) {
-        console.error('DB CONNECTION ERROR:', err);
-        process.exit(1); // Exit process if DB connection fails
-    }
+   } catch (err) {
+    console.error('DB CONNECTION ERROR:', err.message);
+    // DO NOT exit — allow server to stay alive on Render
+}
 }
