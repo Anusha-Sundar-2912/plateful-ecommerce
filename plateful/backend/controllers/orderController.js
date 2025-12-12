@@ -2,14 +2,19 @@ import Stripe from 'stripe';
 import Order from '../modals/order.js';
 import 'dotenv/config';
 
+/* ---------------- STRIPE SAFE INITIALIZER ---------------- */
 const getStripe = () => {
-    if (!process.env.STRIPE_SECRET_KEY) {
-        throw new Error('STRIPE_SECRET_KEY is not defined');
+    const key = process.env.STRIPE_SECRET_KEY;
+
+    if (!key || typeof key !== 'string' || !key.startsWith('sk_')) {
+        console.error('STRIPE_SECRET_KEY missing or invalid');
+        return null;
     }
-    return new Stripe(process.env.STRIPE_SECRET_KEY);
+
+    return new Stripe(key);
 };
 
-// Create Order
+/* ---------------- CREATE ORDER ---------------- */
 export const createOrder = async (req, res) => {
     try {
         const {
@@ -23,7 +28,6 @@ export const createOrder = async (req, res) => {
             return res.status(400).json({ message: 'Invalid or empty items array' });
         }
 
-        // Normalize incoming item structure
         const orderItems = items.map(({ item, name, price, imageUrl, quantity }) => {
             const base = item || {};
             return {
@@ -36,14 +40,17 @@ export const createOrder = async (req, res) => {
             };
         });
 
-        // Default shipping cost
         const shippingCost = 0;
         let newOrder;
 
+        /* ---------- ONLINE PAYMENT ---------- */
         if (paymentMethod === 'online') {
-const stripe = getStripe();
+            const stripe = getStripe();
+            if (!stripe) {
+                return res.status(500).json({ message: 'Stripe not configured' });
+            }
 
-const session = await stripe.checkout.sessions.create({
+            const session = await stripe.checkout.sessions.create({
                 payment_method_types: ['card'],
                 mode: 'payment',
                 line_items: orderItems.map(o => ({
@@ -76,7 +83,7 @@ const session = await stripe.checkout.sessions.create({
             return res.status(201).json({ order: newOrder, checkoutUrl: session.url });
         }
 
-        // COD Handling
+        /* ---------- CASH ON DELIVERY ---------- */
         newOrder = new Order({
             user: req.user._id,
             firstName, lastName, phone, email,
@@ -89,131 +96,79 @@ const session = await stripe.checkout.sessions.create({
 
         await newOrder.save();
         res.status(201).json({ order: newOrder, checkoutUrl: null });
+
     } catch (error) {
         console.error('createOrder error:', error);
-        // ...error handling unchanged...
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };
 
-// Confirm Payment (with diagnostic logging)
+/* ---------------- CONFIRM PAYMENT ---------------- */
 export const confirmPayment = async (req, res) => {
-    console.log("\n--- Confirm Payment Request Received ---");
-    
     try {
         const { session_id } = req.query;
         if (!session_id) {
-            console.log("Error: session_id is missing.");
             return res.status(400).json({ message: 'session_id required' });
         }
-        
-        console.log(`[1] Found session_id: ${session_id}`);
-        console.log("[2] Attempting to retrieve session from Stripe...");
 
-        // --- HANG POINT #1: STRIPE ---
-const stripe = getStripe();
-const session = await stripe.checkout.sessions.retrieve(session_id);
-        // -----------------------------
+        const stripe = getStripe();
+        if (!stripe) {
+            return res.status(500).json({ message: 'Stripe not configured' });
+        }
 
-        console.log("[3] Successfully retrieved session from Stripe.");
-        console.log(`[4] Stripe payment_status: ${session.payment_status}`);
+        const session = await stripe.checkout.sessions.retrieve(session_id);
 
         if (session.payment_status === 'paid') {
-            console.log("[5] Payment is 'paid'. Attempting to update database...");
-
-            // --- HANG POINT #2: DATABASE ---
             const order = await Order.findOneAndUpdate(
                 { sessionId: session_id },
                 { paymentStatus: 'succeeded' },
                 { new: true }
             );
-            // -------------------------------
 
             if (!order) {
-                console.log("Error: Order not found in database for this session.");
                 return res.status(404).json({ message: 'Order not found' });
             }
 
-            console.log("[6] Successfully updated order in database.");
             return res.json(order);
         }
 
-        console.log("Error: Payment status was not 'paid'.");
-        return res.status(400).json({ message: 'Payment not completed' });
+        res.status(400).json({ message: 'Payment not completed' });
 
-    } catch (err) {
-        console.error("--- CRITICAL ERROR in confirmPayment ---", err);
-        res.status(500).json({ message: 'Server Error', error: err.message });
-    }
-};
-
-// Get Orders
-export const getOrders = async (req, res) => {
-    try {
-        // only return orders belonging to this user
-        const filter = { user: req.user._id };
-        const rawOrders = await Order.find(filter).sort({ createdAt: -1 }).lean();
-
-        // Format for front-end
-        const formatted = rawOrders.map(o => ({
-            ...o,
-            items: o.items.map(i => ({
-                _id: i._id,
-                item: i.item,
-                quantity: i.quantity
-            })),
-            createdAt: o.createdAt,
-            paymentStatus: o.paymentStatus
-        }));
-
-        res.json(formatted);
     } catch (error) {
-        console.error('getOrders error:', error);
+        console.error('confirmPayment error:', error);
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };
 
-export const getAllOrders = async (req, res) => {
+/* ---------------- GET USER ORDERS ---------------- */
+export const getOrders = async (req, res) => {
     try {
-        const raw = await Order
-            .find({})
+        const orders = await Order.find({ user: req.user._id })
             .sort({ createdAt: -1 })
             .lean();
 
-        const formatted = raw.map(o => ({
-            _id: o._id,
-            user: o.user,
-            firstName: o.firstName,
-            lastName: o.lastName,
-            email: o.email,
-            phone: o.phone,
-
-            // ← ADD these three:
-            address: o.address ?? o.shippingAddress?.address ?? '',
-            city: o.city ?? o.shippingAddress?.city ?? '',
-            zipCode: o.zipCode ?? o.shippingAddress?.zipCode ?? '',
-
-            paymentMethod: o.paymentMethod,
-            paymentStatus: o.paymentStatus,
-            status: o.status,
-            createdAt: o.createdAt,
-
-            items: o.items.map(i => ({
-                _id: i._id,
-                item: i.item,
-                quantity: i.quantity
-            }))
-        }));
-
-        res.json(formatted);
+        res.json(orders);
     } catch (error) {
-        console.error('getAllOrders error:', error);
-        res.status(500).json({ message: 'Server Error', error: error.message });
+        console.error('getOrders error:', error);
+        res.status(500).json({ message: 'Server Error' });
     }
 };
 
+/* ---------------- GET ALL ORDERS (ADMIN) ---------------- */
+export const getAllOrders = async (req, res) => {
+    try {
+        const orders = await Order.find({})
+            .sort({ createdAt: -1 })
+            .lean();
 
-// NEW: updateAnyOrder — no ownership check
+        res.json(orders);
+    } catch (error) {
+        console.error('getAllOrders error:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+/* ---------------- UPDATE ANY ORDER (ADMIN) ---------------- */
 export const updateAnyOrder = async (req, res) => {
     try {
         const updated = await Order.findByIdAndUpdate(
@@ -221,18 +176,19 @@ export const updateAnyOrder = async (req, res) => {
             req.body,
             { new: true, runValidators: true }
         );
+
         if (!updated) {
-            return res.status(44).json({ message: 'Order not found' });
+            return res.status(404).json({ message: 'Order not found' });
         }
+
         res.json(updated);
     } catch (error) {
         console.error('updateAnyOrder error:', error);
-        res.status(500).json({ message: 'Server Error', error: error.message });
+        res.status(500).json({ message: 'Server Error' });
     }
 };
 
-
-// Get Order by ID
+/* ---------------- GET ORDER BY ID ---------------- */
 export const getOrderById = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id);
@@ -242,17 +198,14 @@ export const getOrderById = async (req, res) => {
             return res.status(403).json({ message: 'Access denied' });
         }
 
-        if (req.query.email && order.email !== req.query.email) {
-            return res.status(403).json({ message: 'Access denied' });
-        }
         res.json(order);
     } catch (error) {
         console.error('getOrderById error:', error);
-        res.status(500).json({ message: 'Server Error', error: error.message });
+        res.status(500).json({ message: 'Server Error' });
     }
 };
 
-// Update Order
+/* ---------------- UPDATE ORDER ---------------- */
 export const updateOrder = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id);
@@ -262,13 +215,15 @@ export const updateOrder = async (req, res) => {
             return res.status(403).json({ message: 'Access denied' });
         }
 
-        if (req.body.email && order.email !== req.body.email) {
-            return res.status(403).json({ message: 'Access denied' });
-        }
-        const updated = await Order.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const updated = await Order.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            { new: true }
+        );
+
         res.json(updated);
     } catch (error) {
         console.error('updateOrder error:', error);
-        res.status(500).json({ message: 'Server Error', error: error.message });
+        res.status(500).json({ message: 'Server Error' });
     }
 };
