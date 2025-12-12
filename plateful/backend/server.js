@@ -22,12 +22,14 @@ app.use(
     origin: [
       'http://localhost:5173',
       'http://localhost:3000',
-      'https://plateful.netlify.app'
+      'https://plateful123.netlify.app'
     ],
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   })
 );
+
+app.options('*', cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
