@@ -3,7 +3,7 @@ import { FiUser, FiBox } from 'react-icons/fi';
 import axios from 'axios';
 import AdminNavbar from '../Navbar/Navbar';
 import { statusStyles, paymentMethodDetails, tableClasses, layoutClasses, iconMap } from '../../assets/dummyadmin';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL } from '../../config/api';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);

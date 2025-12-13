@@ -3,8 +3,7 @@ import axios from 'axios';
 import { FiTrash2, FiStar, FiHeart } from 'react-icons/fi';
 import AdminNavbar from '../Navbar/Navbar';
 import { styles } from '../../assets/dummyadmin';
-import { API_BASE_URL } from '../config/api';
-
+import { API_BASE_URL } from '../../config/api';
 const ListItems = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
