@@ -1,12 +1,18 @@
 import Item from '../modals/item.js';
+import cloudinary from '../config/cloudinary.js';
 
 export const createItem = async (req, res, next) => {
   try {
     const { name, description, category, price, rating, hearts } = req.body;
 
-    const imageUrl = req.file ? req.file.path : '';
+    let imageUrl = '';
 
-    const total = Number(price) * 1;
+    if (req.file) {
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'plateful-items'
+      });
+      imageUrl = result.secure_url;
+    }
 
     const newItem = new Item({
       name,
@@ -15,8 +21,7 @@ export const createItem = async (req, res, next) => {
       price,
       rating,
       hearts,
-      imageUrl,
-      total
+      imageUrl
     });
 
     const saved = await newItem.save();
