@@ -1,4 +1,5 @@
 // frontend/src/components/Login.jsx
+import { API_BASE_URL } from '../../config/api';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
@@ -12,8 +13,6 @@ import {
   FaCheckCircle,
 } from 'react-icons/fa';
 import { inputBase, iconClass } from '../../assets/dummydata';
-
-const url = 'http://localhost:4000'
 
 const Login = ({ onLoginSuccess, onClose }) => {
   const [formData, setFormData] = useState({
@@ -41,10 +40,11 @@ const Login = ({ onLoginSuccess, onClose }) => {
       e.preventDefault();
     
       try {
-        const res = await axios.post(`${url}/api/user/login`, {
-          email: formData.email,
-          password: formData.password,
-        });
+        const res = await axios.post(`${API_BASE_URL}/api/user/login`, {
+  email: formData.email,
+  password: formData.password,
+});
+
         console.log('✅ axios response:', res);
     
         if (res.status === 200 && res.data.success && res.data.token) {

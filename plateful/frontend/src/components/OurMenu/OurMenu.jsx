@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../../config/api';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useCart } from '../../CartContext/CartContext';
@@ -16,7 +17,7 @@ const OurMenu = () => {
   useEffect(() => {
     const fetchMenu = async () => {
       try {
-        const res = await axios.get('http://localhost:4000/api/items');
+       const res = await axios.get(`${API_BASE_URL}/api/items`);
         const byCategory = res.data.reduce((acc, item) => {
           const cat = item.category || 'Uncategorized';
           acc[cat] = acc[cat] || [];
@@ -83,10 +84,17 @@ const OurMenu = () => {
                 {/* Image */}
                 <div className="relative h-48 sm:h-56 md:h-60 flex items-center justify-center bg-black/10">
                   <img
-                    src={item.imageUrl || item.image}
-                    alt={item.name}
-                    className="max-h-full max-w-full object-contain transition-all duration-700"
-                  />
+  src={
+    item.imageUrl?.startsWith('http')
+      ? item.imageUrl
+      : item.imageUrl
+        ? `${API_BASE_URL}${item.imageUrl}`
+        : item.image
+  }
+  alt={item.name}
+  className="max-h-full max-w-full object-contain transition-all duration-700"
+/>
+
                 </div>
 
                 {/* Details */}

@@ -1,6 +1,6 @@
 import React from 'react'
 import Navbar from '../../components/Navbar/Navbar'
-import MyOrder from '../../components/MyOredrsPage/MyOrdersPage'
+import MyOrder from '../../components/MyOrdersPage/MyOrdersPage'
 import Footer from '../../components/Footer/Footer'
 const MyOrders = () => {
     return (

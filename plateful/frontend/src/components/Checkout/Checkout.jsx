@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../../config/api';
 import React, { useState, useEffect } from 'react';
 import { useCart } from '../../CartContext/CartContext';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -32,10 +33,11 @@ const CheckoutPage = () => {
       if (paymentStatus === 'success' && sessionId) {
         // Confirm the payment and create order on the backend
         axios.post(
-          'http://localhost:4000/api/orders/confirm',
-          { sessionId },
-          { headers: authHeaders }
-        )
+  `${API_BASE_URL}/api/orders/confirm`,
+  { sessionId },
+  { headers: authHeaders }
+)
+
           .then(({ data }) => {
             // Only clear cart when payment truly succeeded
             clearCart();
@@ -85,19 +87,20 @@ const CheckoutPage = () => {
       if (formData.paymentMethod === 'online') {
         // Initiate payment session; do NOT create order or clear cart yet
         const { data } = await axios.post(
-          'http://localhost:4000/api/orders',
-          payload,
-          { headers: authHeaders }
-        );
+  `${API_BASE_URL}/api/orders/confirm`,
+  { sessionId },
+  { headers: authHeaders }
+)
         // Redirect to external payment gateway
         window.location.href = data.checkoutUrl;
       } else {
         // Cash on Delivery: directly create order
         const { data } = await axios.post(
-          'http://localhost:4000/api/orders',
-          payload,
-          { headers: authHeaders }
-        );
+  `${API_BASE_URL}/api/orders`,
+  payload,
+  { headers: authHeaders }
+)
+
         clearCart();
         navigate('/myorder', { state: { order: data.order } });
       }
