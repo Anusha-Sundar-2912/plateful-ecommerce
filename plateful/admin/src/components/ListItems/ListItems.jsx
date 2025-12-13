@@ -1,19 +1,25 @@
-// src/components/ListItems.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FiTrash2, FiStar, FiHeart } from 'react-icons/fi';
 import AdminNavbar from '../Navbar/Navbar';
 import { styles } from '../../assets/dummyadmin';
+import { API_BASE_URL } from '../config/api';
 
 const ListItems = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch items from API
   useEffect(() => {
     const fetchItems = async () => {
       try {
-        const { data } = await axios.get('http://localhost:4000/api/items');
+        const { data } = await axios.get(
+          `${API_BASE_URL}/api/items`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('authToken')}`
+            }
+          }
+        );
         setItems(data);
       } catch (err) {
         console.error('Error fetching items:', err);
@@ -24,13 +30,18 @@ const ListItems = () => {
     fetchItems();
   }, []);
 
-  // Delete handler
   const handleDelete = async (itemId) => {
     if (!window.confirm('Are you sure you want to delete this item?')) return;
     try {
-      await axios.delete(`http://localhost:4000/api/items/${itemId}`);
+      await axios.delete(
+        `${API_BASE_URL}/api/items/${itemId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('authToken')}`
+          }
+        }
+      );
       setItems(prev => prev.filter(item => item._id !== itemId));
-      console.log('Deleted item ID:', itemId);
     } catch (err) {
       console.error('Error deleting item:', err);
     }

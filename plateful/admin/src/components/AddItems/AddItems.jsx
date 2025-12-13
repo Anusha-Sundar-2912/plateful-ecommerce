@@ -1,4 +1,5 @@
 // src/components/AddItems.jsx
+import { API_BASE_URL } from '../config/api';
 import React, { useState } from 'react';
 import axios from 'axios';
 import { FiUpload, FiHeart, FiStar } from 'react-icons/fi';
@@ -54,10 +55,16 @@ const AddItems = () => {
         payload.append(key, val);
       });
       const res = await axios.post(
-        'http://localhost:4000/api/items',
-        payload,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
-      );
+  `${API_BASE_URL}/api/items`,
+  payload,
+  {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+      Authorization: `Bearer ${localStorage.getItem('authToken')}`
+    }
+  }
+);
+
       console.log('Created Item:', res.data);
       setFormData({
         name: '', description: '', category: '',
